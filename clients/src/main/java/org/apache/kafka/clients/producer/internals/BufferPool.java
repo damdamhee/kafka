@@ -42,6 +42,10 @@ import org.apache.kafka.common.utils.Time;
  * buffers are deallocated.
  * </ol>
  */
+/*
+
+
+ */
 public class BufferPool {
 
     static final String WAIT_TIME_SENSOR_NAME = "bufferpool-wait-time";
@@ -121,12 +125,20 @@ public class BufferPool {
             // now check if the request is immediately satisfiable with the
             // memory on hand or if we need to block
             int freeListSize = freeSize() * this.poolableSize;
+
+            //할당 가능한 메모리가 있는 경우
             if (this.nonPooledAvailableMemory + freeListSize >= size) {
                 // we have enough unallocated or pooled memory to immediately
                 // satisfy the request, but need to allocate the buffer
+
+                //nonPooledAvailableMemory 확보 - 완전히 새로운 buffer를 할당할 수는 없지만, free버퍼가 있으면, free버퍼를 해제한다.
                 freeUp(size);
+
+                //size만큼 할당될 것이므로 가용 메모리양에서 그만큼 제외한다.
                 this.nonPooledAvailableMemory -= size;
-            } else {
+            }
+            //할당 가능한 메모리가 없는 경우
+            else {
                 // we are out of memory and will have to block
                 int accumulated = 0;
                 Condition moreMemory = this.lock.newCondition();
@@ -203,8 +215,8 @@ public class BufferPool {
     }
 
     /**
-     * Allocate a buffer.  If buffer allocation fails (e.g. because of OOM) then return the size count back to
-     * available memory and signal the next waiter if it exists.
+     * Allocate a buffer.
+     * If buffer allocation fails (e.g. because of OOM) then return the size count back to available memory and signal the next waiter if it exists.
      */
     private ByteBuffer safeAllocateByteBuffer(int size) {
         boolean error = true;
@@ -234,6 +246,7 @@ public class BufferPool {
     /**
      * Attempt to ensure we have at least the requested number of bytes of memory for allocation by deallocating pooled
      * buffers (if needed)
+     * nonPooledAvailableMemory에서는 할당이 불가하지만 free에 재사용 가능한 버퍼가 있는 경우, free에 있는 버퍼를 할당 해제한다.
      */
     private void freeUp(int size) {
         while (!this.free.isEmpty() && this.nonPooledAvailableMemory < size)
